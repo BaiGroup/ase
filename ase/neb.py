@@ -87,17 +87,20 @@ class NEB:
         if parallel:
             assert world.size == 1 or world.size % (self.nimages - 2) == 0
 
-    def interpolate(self, method='linear', mic=False):
+    def interpolate(self, method='linear', guide_images=None, mic=None):
         if self.remove_rotation_and_translation:
             minimize_rotation_and_translation(self.images[0], self.images[-1])
 
-        interpolate(self.images, mic)
+        interpolate(self.images, guide_images, mic)
 
         if method == 'idpp':
             self.idpp_interpolate(traj=None, log=None, mic=mic)
 
     def idpp_interpolate(self, traj='idpp.traj', log='idpp.log', fmax=0.1,
-                         optimizer=MDMin, mic=False, steps=100):
+                         optimizer=MDMin, mic=None, steps=100):
+        if mic is None:
+            mic = determine_mic(self.images)
+
         d1 = self.images[0].get_all_distances(mic=mic)
         d2 = self.images[-1].get_all_distances(mic=mic)
         d = (d2 - d1) / (self.nimages - 1)
@@ -615,17 +618,55 @@ class NEBTools:
 NEBtools = NEBTools  # backwards compatibility
 
 
-def interpolate(images, mic=False):
+def determine_mic(images):
+    '''Return True if images[0] is periodic in at least one dimension.'''
+    return np.any(images[0]._pbc)
+
+
+def interpolate(images, guide_images=None, mic=None):
     """Given a list of images, linearly interpolate the positions of the
     interior images."""
-    pos1 = images[0].get_positions()
-    pos2 = images[-1].get_positions()
-    d = pos2 - pos1
-    if mic:
-        d = find_mic(d, images[0].get_cell(), images[0].pbc)[0]
-    d /= (len(images) - 1.0)
+
+    if guide_images is None:
+        # linear interpolation using only the first and last images
+        guide_images = [0, -1]
+
+    if mic is None:
+        mic = determine_mic(images)
+
+    images_orig = [images[guide_images[0]].copy()]
+    dist_sum = 0.
+    dist = [0.]
+
+    for i in range(len(guide_images)-1):
+        images_orig.append(images[guide_images[i+1]].copy())
+
+        pos1 = images[guide_images[i]].get_scaled_positions()
+        pos2 = images[guide_images[i+1]].get_scaled_positions()
+        vec = pos2 - pos1
+        if mic:
+            # minimum image convention
+            vec = vec - np.round(vec)
+
+        dist_sum += np.linalg.norm(vec)
+        dist.append(dist_sum)
+
+    d = dist_sum / (len(images) - 1.0)
     for i in range(1, len(images) - 1):
-        images[i].set_positions(pos1 + i * d)
+        i_dist = d * i
+        for j, j_dist in enumerate(dist):
+            if i_dist <= j_dist:
+                break
+        pos1 = images_orig[j-1].get_scaled_positions()
+        pos2 = images_orig[j].get_scaled_positions()
+        vec = pos2 - pos1
+        if mic:
+            # minimum image convention
+            vec = vec - np.round(vec)
+
+        i_dist = (i_dist - dist[j-1]) / (j_dist - dist[j-1])
+        images[i].set_scaled_positions(pos1 + vec*i_dist)
+
 
 if __name__ == '__main__':
     # This stuff is used by ASE's GUI
