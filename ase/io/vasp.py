@@ -203,6 +203,11 @@ def read_vasp(filename='CONTCAR'):
             for flag in ac[3:6]:
                 curflag.append(flag == 'F')
             selective_flags[atom] = curflag
+    av_direct = (f.readline())[0].lower() == 'd'
+    atoms_v = np.empty((tot_natoms, 3))
+    for atom in range(tot_natoms):
+        av = f.readline().split()
+        atoms_v[atom] = (float(av[0]), float(av[1]), float(av[2]))
     # Done with all reading
     if isinstance(filename, basestring):
         f.close()
@@ -213,6 +218,12 @@ def read_vasp(filename='CONTCAR'):
         atoms.set_positions(atoms_pos)
     else:
         atoms.set_scaled_positions(atoms_pos)
+    if av_direct:
+        atoms.set_velocities(np.dot(atoms_v, basis_vectors)/ase.units.fs)
+        atoms.velocity_is_direct = True
+    else:
+        atoms.set_velocities(atoms_v/ase.units.fs)
+        atoms.velocity_is_direct = False
     if selective_dynamics:
         constraints = []
         indices = []
@@ -812,6 +823,16 @@ def write_vasp(filename, atoms, label='', direct=False, sort=None,
                     s = 'T'
                 f.write('%4s' % s)
         f.write('\n')
+
+    v = atoms.get_velocities()
+    if v is not None:
+        v *= ase.units.fs
+        cform = cform*3 + '\n'
+        # always write velocities in Cartesian coordinates, as
+        # time step information is not available here
+        f.write('Cartesian\n')
+        for iatom, atom in enumerate(v):
+            f.write(cform % (atom[0], atom[1], atom[2]))
 
     if isinstance(filename, basestring):
         f.close()

@@ -114,7 +114,9 @@ class Vasp(GenerateVaspInput, Calculator):
                 # from CONTCAR.
                 atoms.positions = atoms_sorted[self.resort].positions
                 atoms.cell = atoms_sorted.cell
-
+                self.velocities = atoms_sorted.get_velocities()[self.resort]
+                if atoms_sorted.velocity_is_direct:
+                    self.velocities /= self.float_params['potim']
         self.converged = self.read_convergence()
         self.set_results(atoms)
 
