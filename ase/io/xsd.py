@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
 from ase import Atoms
+from ase.constraints import FixAtoms
 from ase.utils import basestring
 
 
@@ -26,14 +27,19 @@ def read_xsd(file):
         coords = list()
         cell = list()
         formula = str()
+        fix_xyz = []
 
         for atom in system:
             if atom.tag == 'Atom3d':
                 symbol = atom.get('Components')
                 formula += symbol
 
+                restricted_properties = atom.get('RestrictedProperties')
+                if restricted_properties == 'XYZ':
+                    fix_xyz.append(len(coords))
+
                 xyz = atom.get('XYZ')
-                if xyz: 
+                if xyz:
                     coord = [float(coord) for coord in xyz.split(',')]
                 else:
                     coord = [0.0, 0.0, 0.0]
@@ -49,6 +55,7 @@ def read_xsd(file):
 
         atoms = Atoms(formula, cell=cell, pbc=True)
         atoms.set_scaled_positions(coords)
+        atoms.set_constraint(FixAtoms(indices=fix_xyz))
         return atoms
         # if non-periodic system
     elif atomtreeroot.find('Molecule') is not None:
