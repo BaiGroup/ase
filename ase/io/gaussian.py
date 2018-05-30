@@ -31,6 +31,7 @@ allowed_dft_functionals = ['lsda',  # = 'svwn'
                            'pbe1pbe',  # pbe0
                            'm06',
                            'm06hf',
+                           'm06l',
                            'm062x',
                            'tpssh',
                            'tpsstpss',
