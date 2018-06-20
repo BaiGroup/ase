@@ -203,11 +203,14 @@ def read_vasp(filename='CONTCAR'):
             for flag in ac[3:6]:
                 curflag.append(flag == 'F')
             selective_flags[atom] = curflag
-    av_direct = (f.readline())[0].lower() == 'd'
-    atoms_v = np.empty((tot_natoms, 3))
-    for atom in range(tot_natoms):
-        av = f.readline().split()
-        atoms_v[atom] = (float(av[0]), float(av[1]), float(av[2]))
+    atoms_v = np.zeros((tot_natoms, 3))
+    try:
+        av_direct = (f.readline())[0].lower() == 'd'
+        for atom in range(tot_natoms):
+            av = f.readline().split()
+            atoms_v[atom] = (float(av[0]), float(av[1]), float(av[2]))
+    except IndexError:
+        av_direct = False
     # Done with all reading
     if isinstance(filename, basestring):
         f.close()
