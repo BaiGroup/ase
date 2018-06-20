@@ -1413,7 +1413,7 @@ class GenerateVaspInput(object):
                             self.atoms.set_initial_magnetic_moments(
                                 lst[self.resort])
                     else:
-                        data = _args_without_comment(data)
+                        data = _args_without_comment(data[2:])
                         self.list_float_params[key] = [float(x) for x in data]
                 # elif key in list_keys:
                 #     list = []
